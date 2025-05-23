@@ -1,0 +1,31 @@
+[project]
+name = "cpr-langgraph-agent"
+version = "0.1.0"
+description = "RAG agent for CPR"
+readme = "README.md"
+authors = [
+    { name = "Rastislav Tkac", email = "rastislav.tkac@viableone.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115.12",
+    "uvicorn>=0.34.0",
+    "python-dotenv>=1.1.0",
+    "azure-identity>=1.21.0",
+    "azure-core>=1.33.0",
+    "azure-search-documents>=11.5.2",
+    "langchain>=0.3.17",
+    "langchain-openai>=0.3.3",
+    "langchain-community>=0.3.17",
+    "langgraph>=0.3.20",
+    "cryptography==43.0.3",
+    "aiofiles>=24.1.0",
+    "aiohttp>=3.11.18",
+]
+
+[project.scripts]
+cpr-langgraph-agent = "cpr_langgraph_agent.app:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

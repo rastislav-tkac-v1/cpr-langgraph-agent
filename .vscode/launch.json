@@ -1,0 +1,19 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python Debugger: App",
+            "type": "debugpy",
+            "module": "uvicorn",
+            "request": "launch",
+            "args": [
+              "cpr_langgraph_agent.app:app",
+              "--port",
+              "8000",
+            ],
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            
+        }
+    ]
+}
