@@ -13,7 +13,7 @@ from azure.search.documents.indexes.models import (
     SearchField, SearchFieldDataType, SimpleField, SearchableField
 )
 
-from cpr_langgraph_agent.agent_prompt import AGENT_PROMPT
+from cpr_langgraph_agent.agent_prompt import AGENT_PROMPT, AGENT_PROMPT_2
 
 load_dotenv()
 
@@ -89,14 +89,16 @@ async def find_relevant_claims(search_term: str) -> List[Document]:
     """Use this tool to find relevant customer claim and complaint tickets"""
     return await search.asemantic_hybrid_search(
         query=search_term,
-        k=5
+        k=5,
     )
 
 agent = create_react_agent(
     model=llm,
     tools=[find_relevant_claims],
-    prompt=AGENT_PROMPT
+    prompt=AGENT_PROMPT_2
 )
+with open("doc/cpr_langgraph_agent.png", "wb") as f:
+    f.write(agent.get_graph().draw_mermaid_png())
 
 app = FastAPI(title="cpr_langgraph_agent")
 
