@@ -25,6 +25,7 @@ dependencies = [
 
 [project.scripts]
 cpr-langgraph-agent = "cpr_langgraph_agent.app:app"
+mock-server = "mock_server.app:app"
 
 [build-system]
 requires = ["hatchling"]

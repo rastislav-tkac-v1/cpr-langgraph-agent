@@ -1,19 +1,19 @@
 import os
 import json
-from typing import List
 from dotenv import load_dotenv
-from fastapi import FastAPI
+from fastapi import FastAPI, Body
 
 from langchain_openai import AzureChatOpenAI, AzureOpenAIEmbeddings
-from langchain_core.documents import Document
 from langchain_core.messages import BaseMessage, HumanMessage
-from langgraph.prebuilt import create_react_agent
 from langchain_community.vectorstores.azuresearch import AzureSearch
 from azure.search.documents.indexes.models import (
     SearchField, SearchFieldDataType, SimpleField, SearchableField
 )
 
-from cpr_langgraph_agent.agent_prompt import AGENT_PROMPT, AGENT_PROMPT_2
+from cpr_langgraph_agent.models import Ticket
+from cpr_langgraph_agent.crm_client import AsyncCrmClient
+from cpr_langgraph_agent.react_agent import ReActAgent
+from cpr_langgraph_agent.state_models import AgentStateModel
 
 load_dotenv()
 
@@ -29,8 +29,9 @@ AZURE_AI_SEARCH_ENDPOINT = os.getenv("AZURE_AI_SEARCH_ENDPOINT")
 AZURE_AI_SEARCH_INDEX_NAME = os.getenv("AZURE_AI_SEARCH_INDEX_NAME")
 AZURE_AI_SEARCH_API_KEY = os.getenv("AZURE_AI_SEARCH_API_KEY")
 
-
 SEMANTIC_CONFIG = os.getenv("SEMANTIC_CONFIG")
+
+CRM_BASE_URL = os.getenv("CRM_BASE_URL")
 
 llm = AzureChatOpenAI(
     api_version=AZURE_OPENAI_API_VERSION,
@@ -85,30 +86,23 @@ search = AzureSearch(
     fields=fields
 )
 
-async def find_relevant_claims(search_term: str) -> List[Document]:
-    """Use this tool to find relevant customer claim and complaint tickets"""
-    return await search.asemantic_hybrid_search(
-        query=search_term,
-        k=5,
-    )
+crm_client = AsyncCrmClient(CRM_BASE_URL)
 
-agent = create_react_agent(
-    model=llm,
-    tools=[find_relevant_claims],
-    prompt=AGENT_PROMPT_2
-)
-with open("doc/cpr_langgraph_agent.png", "wb") as f:
-    f.write(agent.get_graph().draw_mermaid_png())
+react_agent = ReActAgent(llm, search, crm_client)
 
 app = FastAPI(title="cpr_langgraph_agent")
 
-@app.post("/chat")
-async def chat(question: str):
-    messages = [
-        HumanMessage(content=question)
-    ]
-    output = await agent.ainvoke(
-        input={'messages': messages}
+@app.post("/chat_react_agent")
+async def chat_react_agent(ticket: Ticket = Body(..., embed=True)):
+    
+
+
+    output = await react_agent.agent.ainvoke(
+        input={
+            'messages': [
+                HumanMessage(f'Navrhni mi vhodnou odpověď na tento zákaznický požadavek na reklamaci. Obsah požadavku: \n{ticket.model_dump_json()}')
+            ]
+        },
     )
     for message in output['messages']:
         if isinstance(message, BaseMessage):

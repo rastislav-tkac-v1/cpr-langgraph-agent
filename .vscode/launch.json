@@ -14,6 +14,20 @@
             "console": "integratedTerminal",
             "justMyCode": false,
             
+        },
+        {
+            "name": "Python Debugger: Mock server",
+            "type": "debugpy",
+            "module": "uvicorn",
+            "request": "launch",
+            "args": [
+              "mock_server.app:app",
+              "--port",
+              "9000",
+            ],
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            
         }
     ]
 }
