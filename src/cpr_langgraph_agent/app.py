@@ -102,7 +102,9 @@ app = FastAPI(title="cpr_langgraph_agent")
 async def chat_react_agent(ticket: Ticket = Body(..., embed=True)):
     
     config = {
-        'thread_id': ticket.id
+        'configurable': {
+            'thread_id': ticket.id
+        }
     }
 
     output = await react_agent.agent.ainvoke(
