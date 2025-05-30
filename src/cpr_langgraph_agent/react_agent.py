@@ -5,6 +5,7 @@ from langchain_core.documents import Document
 from langchain_openai import AzureChatOpenAI
 
 from langgraph.prebuilt import create_react_agent
+from langgraph.checkpoint.base import BaseCheckpointSaver
 
 from langchain_community.vectorstores.azuresearch import AzureSearch
 
@@ -14,7 +15,7 @@ from cpr_langgraph_agent.crm_client import AsyncCrmClient
 from cpr_langgraph_agent.state_models import AgentStateModel
 
 class ReActAgent:
-    def __init__(self, llm: AzureChatOpenAI, search: AzureSearch, crm_client: AsyncCrmClient):
+    def __init__(self, llm: AzureChatOpenAI, search: AzureSearch, crm_client: AsyncCrmClient, checkpointer: BaseCheckpointSaver):
         self.agent = create_react_agent(
             model=llm,
             tools=[
@@ -24,7 +25,8 @@ class ReActAgent:
                 self.get_customer_contracts,
                 self.get_contract_payments
             ],
-            prompt=AGENT_PROMPT_2
+            prompt=AGENT_PROMPT_2,
+            checkpointer=checkpointer,
         )
         with open("doc/cpr_langgraph_agent.png", "wb") as f:
             f.write(self.agent.get_graph().draw_mermaid_png())

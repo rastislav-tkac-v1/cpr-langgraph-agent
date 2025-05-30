@@ -15,6 +15,8 @@ from cpr_langgraph_agent.crm_client import AsyncCrmClient
 from cpr_langgraph_agent.react_agent import ReActAgent
 from cpr_langgraph_agent.state_models import AgentStateModel
 
+from langgraph.checkpoint.memory import InMemorySaver
+
 load_dotenv()
 
 AZURE_OPENAI_API_VERSION = os.getenv("AZURE_OPENAI_API_VERSION")
@@ -88,14 +90,20 @@ search = AzureSearch(
 
 crm_client = AsyncCrmClient(CRM_BASE_URL)
 
-react_agent = ReActAgent(llm, search, crm_client)
+
+
+checkpointer = InMemorySaver()
+
+react_agent = ReActAgent(llm, search, crm_client, checkpointer)
 
 app = FastAPI(title="cpr_langgraph_agent")
 
 @app.post("/chat_react_agent")
 async def chat_react_agent(ticket: Ticket = Body(..., embed=True)):
     
-
+    config = {
+        'thread_id': ticket.id
+    }
 
     output = await react_agent.agent.ainvoke(
         input={
@@ -103,6 +111,7 @@ async def chat_react_agent(ticket: Ticket = Body(..., embed=True)):
                 HumanMessage(f'Navrhni mi vhodnou odpověď na tento zákaznický požadavek na reklamaci. Obsah požadavku: \n{ticket.model_dump_json()}')
             ]
         },
+        config=config
     )
     for message in output['messages']:
         if isinstance(message, BaseMessage):
