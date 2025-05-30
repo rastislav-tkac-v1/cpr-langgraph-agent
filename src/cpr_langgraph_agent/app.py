@@ -14,6 +14,9 @@ from cpr_langgraph_agent.models import Ticket
 from cpr_langgraph_agent.crm_client import AsyncCrmClient
 from cpr_langgraph_agent.react_agent import ReActAgent
 from cpr_langgraph_agent.state_models import AgentStateModel
+from cpr_langgraph_agent.data_agent import DataAgent
+from cpr_langgraph_agent.search_agent import SearchAgent
+from cpr_langgraph_agent.supervisor_agent import SupervisorAgent
 
 from langgraph.checkpoint.memory import InMemorySaver
 
@@ -95,6 +98,12 @@ crm_client = AsyncCrmClient(CRM_BASE_URL)
 checkpointer = InMemorySaver()
 
 react_agent = ReActAgent(llm, search, crm_client, checkpointer)
+
+data_agent = DataAgent(llm, crm_client, checkpointer)
+
+search_agent = SearchAgent(llm, search, checkpointer)
+
+supervisor_agent = SupervisorAgent(llm, [data_agent.agent, search_agent.agent], checkpointer)
 
 app = FastAPI(title="cpr_langgraph_agent")
 
