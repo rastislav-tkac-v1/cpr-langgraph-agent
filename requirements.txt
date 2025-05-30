@@ -101,20 +101,27 @@ langchain-core==0.3.61
     #   langgraph
     #   langgraph-checkpoint
     #   langgraph-prebuilt
+    #   langgraph-supervisor
 langchain-openai==0.3.18
     # via cpr-langgraph-agent (pyproject.toml)
 langchain-text-splitters==0.3.8
     # via langchain
 langgraph==0.4.5
-    # via cpr-langgraph-agent (pyproject.toml)
+    # via
+    #   cpr-langgraph-agent (pyproject.toml)
+    #   langgraph-supervisor
 langgraph-checkpoint==2.0.26
     # via
     #   langgraph
     #   langgraph-prebuilt
 langgraph-prebuilt==0.2.0
-    # via langgraph
+    # via
+    #   langgraph
+    #   langgraph-supervisor
 langgraph-sdk==0.1.70
     # via langgraph
+langgraph-supervisor==0.0.27
+    # via cpr-langgraph-agent (pyproject.toml)
 langsmith==0.3.42
     # via
     #   langchain

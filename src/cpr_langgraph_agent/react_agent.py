@@ -33,6 +33,7 @@ class ReActAgent:
             state_schema=AgentStateModel,
             prompt=AGENT_PROMPT_2,
             checkpointer=checkpointer,
+            response_format=AgentStateModel,
         )
         with open("doc/cpr_langgraph_agent.png", "wb") as f:
             f.write(self.agent.get_graph().draw_mermaid_png())

@@ -107,6 +107,31 @@ supervisor_agent = SupervisorAgent(llm, [data_agent.agent, search_agent.agent], 
 
 app = FastAPI(title="cpr_langgraph_agent")
 
+@app.post("/chat_supervisor_agent")
+async def chat_supervisor_agent(ticket: Ticket = Body(..., embed=True)):
+    config = {
+        'configurable': {
+            'thread_id': ticket.id
+        }
+    }
+
+    state = AgentStateModel(
+        messages=[
+                HumanMessage(f'Navrhni mi vhodnou odpověď na tento zákaznický požadavek na reklamaci.')
+            ],
+        incoming_ticket=ticket,
+    )
+
+    output = await supervisor_agent.agent.ainvoke(
+        input = state.model_dump(),
+        config=config,
+    )
+    for message in output['messages']:
+        if isinstance(message, BaseMessage):
+            m: BaseMessage=message
+            print(json.dumps(m.model_dump(), ensure_ascii=False, indent=4))
+    return output
+
 @app.post("/chat_react_agent")
 async def chat_react_agent(ticket: Ticket = Body(..., embed=True)):
     
@@ -118,7 +143,7 @@ async def chat_react_agent(ticket: Ticket = Body(..., embed=True)):
 
     state = AgentStateModel(
         messages=[
-                HumanMessage(f'Navrhni mi vhodnou odpověď na tento zákaznický požadavek na reklamaci. Obsah požadavku: \n{ticket.model_dump_json()}')
+                HumanMessage(f'Navrhni mi vhodnou odpověď na tento zákaznický požadavek na reklamaci.')
             ],
         incoming_ticket=ticket,
     )

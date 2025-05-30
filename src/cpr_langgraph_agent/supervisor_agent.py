@@ -18,6 +18,6 @@ class SupervisorAgent:
             state_schema=AgentStateModel,
             prompt=AGENT_PROMPT,
         )
-        self.supervisor_graph = self.supervisor.compile(checkpointer=checkpointer)
+        self.agent = self.supervisor.compile(checkpointer=checkpointer)
         with open("doc/cpr_langgraph_supervisor_agent.png", "wb") as f:
-            f.write(self.supervisor_graph.get_graph().draw_mermaid_png())
+            f.write(self.agent.get_graph().draw_mermaid_png())
