@@ -11,4 +11,4 @@ class AgentStateModel(AgentStatePydantic):
     contracts: Optional[List[Contract]] = Field(description='List of customer contracts', default=None)
     payments: Optional[List[Payment]] = Field(description='List of customer payments', default=None)
     similar_tickets: Optional[List[Ticket]] = Field(description='List of similar tickets', default=None)
-    suggested_responses: Optional[List[str]] = Field(description='List of suggested responses to the customer claim', default=None)
+    # suggested_responses: Optional[List[str]] = Field(description='List of suggested responses to the customer claim', default=None)

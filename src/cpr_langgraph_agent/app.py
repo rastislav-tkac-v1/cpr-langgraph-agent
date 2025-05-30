@@ -107,14 +107,18 @@ async def chat_react_agent(ticket: Ticket = Body(..., embed=True)):
         }
     }
 
-    output = await react_agent.agent.ainvoke(
-        input={
-            'messages': [
+    state = AgentStateModel(
+        messages=[
                 HumanMessage(f'Navrhni mi vhodnou odpověď na tento zákaznický požadavek na reklamaci. Obsah požadavku: \n{ticket.model_dump_json()}')
-            ]
-        },
-        config=config
+            ],
+        incoming_ticket=ticket,
     )
+
+    output = await react_agent.agent.ainvoke(
+        input = state.model_dump(),
+        config=config,
+    )
+
     for message in output['messages']:
         if isinstance(message, BaseMessage):
             m: BaseMessage=message
