@@ -14,7 +14,7 @@ from langgraph.types import Command
 from langchain_community.vectorstores.azuresearch import AzureSearch
 
 from cpr_langgraph_agent.agent_prompt import AGENT_PROMPT_2
-from cpr_langgraph_agent.models import Ticket, Customer, ConsumptionPoint, Contract, Payment
+from cpr_langgraph_agent.models import Ticket
 from cpr_langgraph_agent.crm_client import AsyncCrmClient
 from cpr_langgraph_agent.state_models import AgentStateModel
 
@@ -88,7 +88,7 @@ class ReActAgent:
         """
         Use this tool to retrieve customer details from CRM.
         """
-        customer:Customer = await self.crm_client.get_customer_by_email(state.incoming_ticket.email)
+        customer = await self.crm_client.get_customer_by_email(state.incoming_ticket.email)
         return Command(update={
             'customer': customer,
             'messages': [
