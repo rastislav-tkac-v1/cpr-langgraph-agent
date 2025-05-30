@@ -7,6 +7,8 @@
             "module": "uvicorn",
             "request": "launch",
             "args": [
+              "--app-dir", 
+              "src",
               "cpr_langgraph_agent.app:app",
               "--port",
               "8000",
@@ -21,6 +23,8 @@
             "module": "uvicorn",
             "request": "launch",
             "args": [
+              "--app-dir", 
+              "src",
               "mock_server.app:app",
               "--port",
               "9000",
