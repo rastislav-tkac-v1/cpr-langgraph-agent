@@ -7,9 +7,10 @@ from langchain_core.messages import ToolMessage, SystemMessage
 from langchain_core.tools import InjectedToolCallId
 from langchain_openai import AzureChatOpenAI
 
-from langgraph.prebuilt import create_react_agent, InjectedState
+from langgraph.prebuilt import create_react_agent, should_continue, InjectedState
 from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.types import Command
+from langgraph.graph import StateGraph
 
 from langchain_community.vectorstores.azuresearch import AzureSearch
 
@@ -17,6 +18,7 @@ from cpr_langgraph_agent.agent_prompt import AGENT_PROMPT_2
 from cpr_langgraph_agent.models import Ticket
 from cpr_langgraph_agent.crm_client import AsyncCrmClient
 from cpr_langgraph_agent.state_models import AgentStateModel
+from cpr_langgraph_agent.output_models import AgentOutput
 
 class ReActAgent:
     def __init__(self, llm: AzureChatOpenAI, search: AzureSearch, crm_client: AsyncCrmClient, checkpointer: BaseCheckpointSaver):
@@ -24,7 +26,7 @@ class ReActAgent:
             model=llm,
             tools=[
                 self.find_relevant_claims, 
-                self.get_customer_by_email, 
+                self.get_customer, 
                 self.get_customer_consumption_points,
                 self.get_customer_contracts,
                 self.get_contract_payments
@@ -34,6 +36,11 @@ class ReActAgent:
             prompt=AGENT_PROMPT_2,
             checkpointer=checkpointer,
         )
+        # hack to add response formatting
+        graph: StateGraph = self.agent.get_graph()
+        graph.add_node(self.response_format_hook, 'response_format_hook')
+        graph.add_conditional_edges('agent', )
+        
         with open("doc/cpr_langgraph_agent.png", "wb") as f:
             f.write(self.agent.get_graph().draw_mermaid_png())
         
@@ -54,6 +61,10 @@ class ReActAgent:
             "llm_input_messages": [*state.messages, state_data]
         }
         return output
+
+    async def response_format_hook(self, state: AgentStateModel):
+        print("response format hook")
+        pass
 
     async def find_relevant_claims(self, tool_call_id: Annotated[str, InjectedToolCallId], search_term: str) -> Command:
         """Use this tool to find relevant customer claim and complaint tickets"""
@@ -80,11 +91,11 @@ class ReActAgent:
         return Command(update={
             'similar_tickets': similar_tickets,
             'messages': [
-                ToolMessage('Successfully found similar tickets. See the CURRENT DATA for their contents.', tool_call_id=tool_call_id)
+                ToolMessage(content='Successfully found similar tickets. See the CURRENT DATA for their contents.', tool_call_id=tool_call_id)
             ]
         })
     
-    async def get_customer_by_email(self, tool_call_id: Annotated[str, InjectedToolCallId], state: Annotated[AgentStateModel, InjectedState]) -> Command:
+    async def get_customer(self, tool_call_id: Annotated[str, InjectedToolCallId], state: Annotated[AgentStateModel, InjectedState]) -> Command:
         """
         Use this tool to retrieve customer details from CRM.
         """
@@ -92,7 +103,7 @@ class ReActAgent:
         return Command(update={
             'customer': customer,
             'messages': [
-                ToolMessage('Successfully loaded customer record. See the CURRENT DATA for the customer record content.', tool_call_id=tool_call_id)
+                ToolMessage(content='Successfully loaded customer record. See the CURRENT DATA for the customer record content.', tool_call_id=tool_call_id)
             ]
         })
     
@@ -100,13 +111,16 @@ class ReActAgent:
         """
         Use this tool to retrieve customer consumption points.
         Optionally you can filter consumption points by product family ('electricity' or 'gas') based on the incoming ticket contents
+
+        Arguments:
+          - product_family - optional argument, use it in case you want to retrieve only consumption points for certain product family. Supported product families are 'electricity' and 'gas'
         """
         if state.customer:
             consumption_points = await self.crm_client.get_customer_consumption_points(state.customer.customer_id, product_family=product_family)
             return Command(update={
                 'consumption_points': consumption_points,
                 'messages': [
-                    ToolMessage('Successfully loaded consumption point list. See the CURRENT DATA for the list contents.', tool_call_id=tool_call_id)
+                    ToolMessage(content='Successfully loaded consumption point list. See the CURRENT DATA for the list contents.', tool_call_id=tool_call_id)
                 ]
             })
 
@@ -119,19 +133,21 @@ class ReActAgent:
             return Command(update={
                 'contracts': contracts,
                 'messages': [
-                    ToolMessage('Successfully loaded contract list. See the CURRENT DATA for the list contents.', tool_call_id=tool_call_id)
+                    ToolMessage(content='Successfully loaded contract list. See the CURRENT DATA for the list contents.', tool_call_id=tool_call_id)
                 ]
             })
     
     async def get_contract_payments(self, tool_call_id: Annotated[str, InjectedToolCallId], state: Annotated[AgentStateModel, InjectedState], contract_ids: List[str]) -> Command:
         """
         Use this tool to retrieve contract payments by contract id. 
+        Arguments:
+          - contract_ids - List of contract IDs for which the payments shall be retrieved 
         """
         if state.customer:
             payments = [await self.crm_client.get_contract_payments(state.customer.customer_id, contract_id) for contract_id in contract_ids]
             return Command(update={
                 'payments': payments,
                 'messages': [
-                    ToolMessage('Successfully loaded payment list', tool_call_id=tool_call_id)
+                    ToolMessage(content='Successfully loaded payment list', tool_call_id=tool_call_id)
                 ]
             })

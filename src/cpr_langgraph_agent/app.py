@@ -14,6 +14,7 @@ from cpr_langgraph_agent.models import Ticket
 from cpr_langgraph_agent.crm_client import AsyncCrmClient
 from cpr_langgraph_agent.react_agent import ReActAgent
 from cpr_langgraph_agent.state_models import AgentStateModel
+from cpr_langgraph_agent.output_models import AgentOutput
 from cpr_langgraph_agent.data_agent import DataAgent
 from cpr_langgraph_agent.search_agent import SearchAgent
 from cpr_langgraph_agent.supervisor_agent import SupervisorAgent
@@ -44,6 +45,7 @@ llm = AzureChatOpenAI(
     azure_deployment=AZURE_OPENAI_DEPLOYMENT_NAME,
     model=AZURE_OPENAI_MODEL_NAME,
     api_key=AZURE_OPENAI_API_KEY,
+    temperature=0,
     timeout=60,
     max_retries=3,
 )
@@ -157,6 +159,10 @@ async def chat_react_agent(ticket: Ticket = Body(..., embed=True)):
         if isinstance(message, BaseMessage):
             m: BaseMessage=message
             print(json.dumps(m.model_dump(), ensure_ascii=False, indent=4))
+    print('-----------------------------------------------')
+    print ('Agent output:')
+    agent_output: AgentOutput = output['structured_response']
+    print(agent_output.suggested_responses)
     return output
 
 if __name__ == "__main__":
