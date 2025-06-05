@@ -3,44 +3,64 @@ from typing import Annotated, List, Optional
 import json
 
 from langchain_core.documents import Document
-from langchain_core.messages import ToolMessage, SystemMessage
-from langchain_core.tools import InjectedToolCallId
+from langchain_core.messages import HumanMessage, ToolMessage, SystemMessage
+from langchain_core.tools import InjectedToolCallId, tool
+from langchain_core.runnables import RunnableConfig
 from langchain_openai import AzureChatOpenAI
 
-from langgraph.prebuilt import create_react_agent, should_continue, InjectedState
+from langgraph.prebuilt import InjectedState, ToolNode
 from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.types import Command
-from langgraph.graph import StateGraph
+from langgraph.graph import StateGraph, END
 
 from langchain_community.vectorstores.azuresearch import AzureSearch
 
 from cpr_langgraph_agent.agent_prompt import AGENT_PROMPT_2
 from cpr_langgraph_agent.models import Ticket
 from cpr_langgraph_agent.crm_client import AsyncCrmClient
-from cpr_langgraph_agent.state_models import AgentStateModel
+from cpr_langgraph_agent.state_models import AgentStateModel, AgentInputModel
 from cpr_langgraph_agent.output_models import AgentOutput
 
 class ReActAgent:
-    def __init__(self, llm: AzureChatOpenAI, search: AzureSearch, crm_client: AsyncCrmClient, checkpointer: BaseCheckpointSaver):
-        self.agent = create_react_agent(
-            model=llm,
-            tools=[
+    def __init__(
+            self, 
+            llm: AzureChatOpenAI,
+            search: AzureSearch, 
+            crm_client: AsyncCrmClient, 
+            checkpointer: BaseCheckpointSaver, 
+    ):
+        self.tools=[
                 self.find_relevant_claims, 
                 self.get_customer, 
                 self.get_customer_consumption_points,
                 self.get_customer_contracts,
                 self.get_contract_payments
-            ],
-            pre_model_hook=self.pre_model_hook,
-            state_schema=AgentStateModel,
-            prompt=AGENT_PROMPT_2,
-            checkpointer=checkpointer,
-        )
-        # hack to add response formatting
-        graph: StateGraph = self.agent.get_graph()
-        graph.add_node(self.response_format_hook, 'response_format_hook')
-        graph.add_conditional_edges('agent', )
+            ]
+
+        self.llm_with_tools = llm.bind_tools(self.tools)
+        self.llm_with_structured_output = llm.with_structured_output(AgentOutput)
+
+        workflow = StateGraph(AgentStateModel)
         
+        workflow.add_node("pre_model_hook", self.pre_model_hook)
+        workflow.add_node("agent", self.call_model, input=AgentInputModel)
+        workflow.add_node("tools", ToolNode(self.tools))
+        workflow.add_node("respond", self.respond)
+
+        workflow.set_entry_point("pre_model_hook")
+        workflow.add_edge("pre_model_hook", "agent")
+        workflow.add_conditional_edges(
+            "agent", 
+            self.should_continue,
+            {
+                "continue": "tools",
+                "end": "respond",
+            }
+        )
+        workflow.add_edge("tools", "pre_model_hook")
+        workflow.add_edge("respond", END)
+
+        self.agent = workflow.compile(checkpointer=checkpointer)
         with open("doc/cpr_langgraph_agent.png", "wb") as f:
             f.write(self.agent.get_graph().draw_mermaid_png())
         
@@ -62,10 +82,29 @@ class ReActAgent:
         }
         return output
 
-    async def response_format_hook(self, state: AgentStateModel):
-        print("response format hook")
-        pass
-
+    async def respond(self, state: AgentStateModel):
+        response = await self.llm_with_structured_output.ainvoke(
+            [HumanMessage(content=state.messages[-1].content)]
+        )
+        return {"structured_response": response}
+    
+    async def call_model(self, input: AgentInputModel, config: RunnableConfig):
+        system_prompt = SystemMessage(AGENT_PROMPT_2)
+        response = await self.llm_with_tools.ainvoke([system_prompt] + input.llm_input_messages, config)
+        # We return a list, because this will get added to the existing list
+        return {"messages": [response]}
+    
+    # Define the conditional edge that determines whether to continue or not
+    async def should_continue(self, state: AgentStateModel):
+        messages = state.messages
+        last_message = messages[-1]
+        # If there is no function call, then we finish
+        if not last_message.tool_calls:
+            return "end"
+        # Otherwise if there is, we continue
+        else:
+            return "continue"
+    
     async def find_relevant_claims(self, tool_call_id: Annotated[str, InjectedToolCallId], search_term: str) -> Command:
         """Use this tool to find relevant customer claim and complaint tickets"""
         search_result: Document = await self.search.asemantic_hybrid_search(
